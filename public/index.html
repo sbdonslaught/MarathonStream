@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MarathonStream</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<main id="stage">
+  <div id="timer">
+    <div class="unit"><span class="val" id="t-d">0</span><span class="lbl">days</span></div>
+    <div class="sep">:</div>
+    <div class="unit"><span class="val" id="t-h">00</span><span class="lbl">hours</span></div>
+    <div class="sep">:</div>
+    <div class="unit"><span class="val" id="t-m">00</span><span class="lbl">minutes</span></div>
+    <div class="sep">:</div>
+    <div class="unit"><span class="val" id="t-s">00</span><span class="lbl">seconds</span></div>
+  </div>
+  <div id="chips"></div>
+</main>
+
+<div id="controls">
+  <button id="btn-toggle-timer" title="Start / pause timer">&#9654;</button>
+  <button id="btn-toggle-actions" title="Pause / resume time additions">&#9889;</button>
+  <button id="btn-activity" title="Activity">&#9776;</button>
+  <button id="btn-settings" title="Options">&#9881;</button>
+</div>
+
+<!-- ============ ACTIVITY PANEL ============ -->
+<aside id="activity" class="panel left">
+  <header>
+    <h2>Activity</h2>
+    <button class="close" data-close="activity">&#10005;</button>
+  </header>
+  <div class="body">
+    <ul id="activity-list"></ul>
+    <p id="activity-empty" class="muted">No activity yet.</p>
+  </div>
+</aside>
+
+<!-- ============ SETTINGS PANEL ============ -->
+<aside id="settings" class="panel right">
+  <header>
+    <h2>Options</h2>
+    <button class="close" data-close="settings">&#10005;</button>
+  </header>
+  <div class="body">
+
+    <section>
+      <h3>Twitch</h3>
+      <label>Client ID
+        <input type="text" id="clientId" placeholder="Your Twitch app Client ID" autocomplete="off">
+      </label>
+      <div class="row">
+        <button id="btn-connect" class="primary">Sign in with Twitch</button>
+        <button id="btn-disconnect">Disconnect</button>
+      </div>
+      <p id="twitch-status" class="muted">Not connected</p>
+    </section>
+
+    <section>
+      <h3>Timer</h3>
+      <div class="row dhms">
+        <label>D<input type="number" id="start-d" min="0" value="0"></label>
+        <label>H<input type="number" id="start-h" min="0" value="0"></label>
+        <label>M<input type="number" id="start-m" min="0" value="0"></label>
+        <label>S<input type="number" id="start-s" min="0" value="0"></label>
+      </div>
+      <div class="row">
+        <button id="btn-set-timer">Set timer</button>
+        <button id="btn-start-pause" class="primary">Start</button>
+      </div>
+      <div class="row">
+        <button id="btn-pause-actions">Pause time additions</button>
+      </div>
+      <label class="check">
+        <input type="checkbox" id="allowAfterZero">
+        Allow actions to add time after the timer hits zero
+      </label>
+    </section>
+
+    <section>
+      <h3>Add time manually</h3>
+      <div class="row dhms">
+        <label>D<input type="number" id="add-d" value="0"></label>
+        <label>H<input type="number" id="add-h" value="0"></label>
+        <label>M<input type="number" id="add-m" value="0"></label>
+        <label>S<input type="number" id="add-s" value="0"></label>
+      </div>
+      <div class="row">
+        <button id="btn-add-time" class="primary">Add time</button>
+      </div>
+      <p class="muted">Negative numbers subtract time.</p>
+    </section>
+
+    <section>
+      <h3>Time per action (seconds)</h3>
+      <label>Follow<input type="number" id="followSeconds" min="0"></label>
+      <label>Sub / resub / gifted sub<input type="number" id="subSeconds" min="0"></label>
+      <label>Per 100 bits (scales with amount)<input type="number" id="bitsPer100Seconds" min="0"></label>
+    </section>
+
+    <section>
+      <h3>Chat keywords</h3>
+      <div id="keyword-list" class="cfg-list"></div>
+      <div class="row addrow">
+        <input type="text" id="kw-word" placeholder="keyword">
+        <input type="number" id="kw-secs" placeholder="sec" min="0">
+        <button id="btn-add-keyword">+</button>
+      </div>
+      <label>Per-user cooldown (seconds, 0 = off)
+        <input type="number" id="keywordCooldownSec" min="0">
+      </label>
+    </section>
+
+    <section>
+      <h3>Channel point rewards</h3>
+      <p class="muted">Reward title must match exactly (case doesn't matter).</p>
+      <div id="redeem-list" class="cfg-list"></div>
+      <div class="row addrow">
+        <input type="text" id="rd-title" placeholder="reward title">
+        <input type="number" id="rd-secs" placeholder="sec" min="0">
+        <button id="btn-add-redeem">+</button>
+      </div>
+    </section>
+
+    <section>
+      <h3>Test (simulate events)</h3>
+      <div class="row wrap">
+        <button class="sim" data-sim="follow">Follow</button>
+        <button class="sim" data-sim="sub">Sub</button>
+        <button class="sim" data-sim="bits">100 bits</button>
+        <button class="sim" data-sim="keyword">Keyword</button>
+        <button class="sim" data-sim="redeem">Redemption</button>
+      </div>
+    </section>
+
+    <section class="danger">
+      <h3>Danger zone</h3>
+      <button id="btn-reset" class="danger">RESET EVERYTHING</button>
+      <p class="muted">Clears the timer, all activity, and cooldowns. Settings and Twitch login are kept.</p>
+    </section>
+
+  </div>
+</aside>
+
+<script src="app.js"></script>
+<script src="twitch.js"></script>
+</body>
+</html>

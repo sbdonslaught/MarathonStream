@@ -1,0 +1,10 @@
+{
+  "name": "marathonstream",
+  "version": "1.0.0",
+  "description": "Twitch sub-marathon countdown timer with EventSub integration",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "node build.js"
+  }
+}
