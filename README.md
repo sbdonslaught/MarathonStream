@@ -30,9 +30,9 @@ Notes:
 - The exe is unsigned, so Windows SmartScreen may warn on first launch — click *More info → Run anyway*.
 - The exe's saved data (timer, settings, login) lives in `%LOCALAPPDATA%\MarathonStream`, so updating or moving the exe never loses your marathon. Note this is separate storage from any browser you used via `npm start`.
 
-## Connect to Twitch (one-time setup)
+## Connect to Twitch
 
-The app talks to Twitch directly from your browser, so you need your own (free) Twitch app credentials:
+The app fetches its Client ID automatically from `https://marathon.onslaught.ca/app/client_id` (see [website/SETUP.md](website/SETUP.md) for hosting that file), so normally signing in is just: Options → **Sign in with Twitch** → approve. The steps below are only needed if you want to use your **own** Twitch app registration instead (paste its Client ID into the "Client ID override" field in Options):
 
 1. Go to https://dev.twitch.tv/console/apps and click **Register Your Application**.
 2. Name: anything (e.g. `MarathonStream`).

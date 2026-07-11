@@ -45,9 +45,16 @@ http://localhost:3117/auth/callback
 
 The first is used by the browser/SEA version, the second by this Electron app. Same Client ID works for both, and you can still add `http://localhost:3117` as an OBS browser source while this app is running.
 
-### Sharing with others: skip the Twitch dev console entirely
+### Where the Client ID comes from
 
-`ui/twitch.js` has a `DEFAULT_CLIENT_ID` constant at the top. Register **one** Twitch app yourself (Client type: **Public**, both redirect URLs above), paste its Client ID into that constant, and rebuild. Anyone using your build can then just click *Sign in with Twitch* — no Client ID field, no dev-console setup. (Public clients have no secret, so shipping the ID is safe and standard practice.)
+Users don't register anything. The app resolves the Client ID in this order:
+
+1. Manual override typed into Options (rarely needed)
+2. Remote config from `https://marathon.onslaught.ca/app/client_id` — see [website/SETUP.md](../website/SETUP.md) for hosting it and rotating the id without shipping a new build
+3. The last successfully fetched value, cached locally (covers the website being down)
+4. The `DEFAULT_CLIENT_ID` constant in `ui/twitch.js` (empty by default; optional baked-in last resort)
+
+API calls always use the client id the current token was issued under (Twitch's `/validate` reports it), so rotating the remote id never breaks sessions that are already signed in.
 
 ## UI code
 
