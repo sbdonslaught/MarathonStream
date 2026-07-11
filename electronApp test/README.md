@@ -34,7 +34,20 @@ Both are unsigned, so Windows SmartScreen may warn on first launch (*More info �
 
 ## Twitch setup
 
-Identical to the main app (see the [main README](../README.md)): register a Twitch app with OAuth redirect URL `http://localhost:3117/`, paste the Client ID in Options, sign in. The app still hosts itself on `http://localhost:3117`, so the same Twitch app registration works for both versions, and you can still add that URL as an OBS browser source while this app is running.
+Clicking **Sign in with Twitch** opens your normal web browser — where you're usually already logged in to Twitch — so signing in is typically a single click on "Authorize". The browser tab then hands the session back to the app and the app window pops back into focus.
+
+For that to work, the Twitch app registration (see the [main README](../README.md)) needs **both** OAuth redirect URLs:
+
+```
+http://localhost:3117/
+http://localhost:3117/auth/callback
+```
+
+The first is used by the browser/SEA version, the second by this Electron app. Same Client ID works for both, and you can still add `http://localhost:3117` as an OBS browser source while this app is running.
+
+### Sharing with others: skip the Twitch dev console entirely
+
+`ui/twitch.js` has a `DEFAULT_CLIENT_ID` constant at the top. Register **one** Twitch app yourself (Client type: **Public**, both redirect URLs above), paste its Client ID into that constant, and rebuild. Anyone using your build can then just click *Sign in with Twitch* — no Client ID field, no dev-console setup. (Public clients have no secret, so shipping the ID is safe and standard practice.)
 
 ## UI code
 

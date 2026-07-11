@@ -36,7 +36,7 @@ The app talks to Twitch directly from your browser, so you need your own (free) 
 
 1. Go to https://dev.twitch.tv/console/apps and click **Register Your Application**.
 2. Name: anything (e.g. `MarathonStream`).
-3. **OAuth Redirect URLs**: `http://localhost:3117/` (exactly, with the trailing slash).
+3. **OAuth Redirect URLs**: add both `http://localhost:3117/` (exactly, with the trailing slash) and `http://localhost:3117/auth/callback` (the second one is used by the Electron version).
 4. Category: anything (e.g. *Broadcaster Suite*). Client type: **Public**.
 5. Copy the **Client ID**.
 6. In the app, open **Options** (gear icon, top-right — move the mouse to reveal it), paste the Client ID into the Twitch section, and click **Sign in with Twitch**.

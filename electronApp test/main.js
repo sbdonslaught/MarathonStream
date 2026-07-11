@@ -43,6 +43,61 @@ if (!app.requestSingleInstanceLock()) {
   app.on('window-all-closed', () => app.quit());
 }
 
+// --- Twitch sign-in handoff -------------------------------------------------
+// "Sign in with Twitch" opens the user's default browser. Twitch redirects it
+// to /auth/callback below, whose page posts the token to /auth/token; the app
+// window picks it up from /auth/poll.
+let pendingToken = null;
+
+const CALLBACK_HTML = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>MarathonStream sign-in</title>
+<style>body{font-family:system-ui,sans-serif;background:#0e0e10;color:#efeff1;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}div{text-align:center;max-width:480px}h1{color:#9147ff;letter-spacing:1px}</style>
+</head><body><div><h1>MarathonStream</h1><p id="msg">Finishing sign-in...</p></div>
+<script>
+const hash = new URLSearchParams(location.hash.slice(1));
+const query = new URLSearchParams(location.search);
+const token = hash.get('access_token');
+const msg = document.getElementById('msg');
+if (token) {
+  fetch('/auth/token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: token }) })
+    .then(() => { msg.textContent = 'Signed in! You can close this tab and return to MarathonStream.'; setTimeout(() => window.close(), 1200); })
+    .catch(() => { msg.textContent = 'Could not reach MarathonStream - is the app still running?'; });
+} else {
+  msg.textContent = 'Sign-in was cancelled or failed (' + (query.get('error_description') || query.get('error') || 'no token returned') + '). You can close this tab.';
+}
+</script></body></html>`;
+
+function handleAuthRoute(urlPath, req, res) {
+  if (urlPath === '/auth/callback') {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(CALLBACK_HTML);
+    return true;
+  }
+  if (urlPath === '/auth/token' && req.method === 'POST') {
+    let body = '';
+    req.on('data', (c) => { body += c; if (body.length > 4096) req.destroy(); });
+    req.on('end', () => {
+      try { pendingToken = JSON.parse(body).token || null; }
+      catch { pendingToken = null; }
+      res.writeHead(204); res.end();
+      if (pendingToken && win) {
+        if (win.isMinimized()) win.restore();
+        win.show();
+        win.focus();
+      }
+    });
+    return true;
+  }
+  if (urlPath === '/auth/poll') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ token: pendingToken }));
+    pendingToken = null; // one-shot: handed over exactly once
+    return true;
+  }
+  return false;
+}
+// -----------------------------------------------------------------------------
+
 function startServer() {
   return new Promise((resolve) => {
     server = http.createServer((req, res) => {
@@ -52,6 +107,7 @@ function startServer() {
       } catch {
         res.writeHead(400); return res.end('Bad request');
       }
+      if (handleAuthRoute(urlPath, req, res)) return;
       if (urlPath === '/' || urlPath === '') urlPath = '/index.html';
       const filePath = path.normalize(path.join(UI, urlPath));
       if (!filePath.startsWith(UI)) { res.writeHead(404); return res.end('Not found'); }
@@ -66,7 +122,9 @@ function startServer() {
       if (e.code === 'EADDRINUSE') { server = null; resolve(false); }
       else throw e;
     });
-    server.listen(PORT, () => resolve(true));
+    // 127.0.0.1 only: the sign-in token passes through this server briefly,
+    // so it must not be reachable from the network
+    server.listen(PORT, '127.0.0.1', () => resolve(true));
   });
 }
 

@@ -1,7 +1,22 @@
 'use strict';
 /* Twitch integration: OAuth (implicit grant) + EventSub over WebSocket.
-   Requires app.js to be loaded first (uses window.MS). */
+   Requires app.js to be loaded first (uses window.MS).
+
+   This file is shared by the browser/SEA version (public/) and the Electron
+   app (electronApp test/ui/) - keep both copies identical.
+   - In a browser, sign-in navigates this page to Twitch and back.
+   - In Electron, sign-in opens the user's default browser (where they are
+     already logged in to Twitch); the redirect lands on /auth/callback, which
+     hands the token back to the app through the local server. */
 (function () {
+  // Optional built-in Client ID so users don't each have to register a
+  // Twitch app. To use: register ONE app at https://dev.twitch.tv/console/apps
+  // (Client type: Public) with BOTH OAuth redirect URLs
+  //   http://localhost:3117/
+  //   http://localhost:3117/auth/callback
+  // and paste its Client ID here before sharing builds.
+  const DEFAULT_CLIENT_ID = '';
+
   const AUTH_URL = 'https://id.twitch.tv/oauth2/authorize';
   const VALIDATE_URL = 'https://id.twitch.tv/oauth2/validate';
   const HELIX = 'https://api.twitch.tv/helix';
@@ -14,6 +29,8 @@
     'user:read:chat'
   ].join(' ');
 
+  const IS_ELECTRON = navigator.userAgent.includes('Electron');
+
   let ws = null;
   let sessionId = null;
   let intentionalClose = false;
@@ -21,22 +38,66 @@
   let keepaliveSec = 10;
   let reconnecting = false; // true while following a session_reconnect URL
 
-  // ---------- OAuth ----------
-  function startAuth() {
-    const clientId = MS.state.settings.clientId.trim();
-    if (!clientId) {
-      alert('Enter your Twitch app Client ID first.\n\nCreate an app at https://dev.twitch.tv/console/apps with OAuth redirect URL:\n' + location.origin + '/');
-      return;
-    }
-    const url = AUTH_URL +
-      '?response_type=token' +
-      '&client_id=' + encodeURIComponent(clientId) +
-      '&redirect_uri=' + encodeURIComponent(location.origin + '/') +
-      '&scope=' + encodeURIComponent(SCOPES) +
-      '&force_verify=true';
-    location.href = url;
+  function clientId() {
+    return (MS.state.settings.clientId || '').trim() || DEFAULT_CLIENT_ID;
   }
 
+  // ---------- OAuth ----------
+  function buildAuthUrl(redirectPath) {
+    return AUTH_URL +
+      '?response_type=token' +
+      '&client_id=' + encodeURIComponent(clientId()) +
+      '&redirect_uri=' + encodeURIComponent(location.origin + redirectPath) +
+      '&scope=' + encodeURIComponent(SCOPES) +
+      '&force_verify=true';
+  }
+
+  function startAuth() {
+    if (!clientId()) {
+      alert('Enter your Twitch app Client ID first.\n\nCreate an app at https://dev.twitch.tv/console/apps with OAuth redirect URLs:\n' + location.origin + '/\n' + location.origin + '/auth/callback');
+      return;
+    }
+    if (IS_ELECTRON) {
+      // main process turns window.open into "open in default browser"
+      window.open(buildAuthUrl('/auth/callback'));
+      MS.setTwitchStatus('Waiting for you to authorize in your browser...', '');
+      pollForToken();
+    } else {
+      location.href = buildAuthUrl('/');
+    }
+  }
+
+  // Electron flow: the external browser hit /auth/callback, which POSTed the
+  // token to the local server; pick it up from there.
+  let polling = false;
+  async function pollForToken() {
+    if (polling) return;
+    polling = true;
+    const deadline = Date.now() + 5 * 60 * 1000;
+    try {
+      while (Date.now() < deadline) {
+        await new Promise(r => setTimeout(r, 1500));
+        if (MS.state.auth.token) return; // signed in some other way
+        try {
+          const r = await fetch('/auth/poll');
+          if (r.ok) {
+            const d = await r.json();
+            if (d && d.token) {
+              MS.state.auth.token = d.token;
+              MS.saveNow();
+              connect();
+              return;
+            }
+          }
+        } catch { /* transient - keep polling */ }
+      }
+      if (!MS.state.auth.token) MS.setTwitchStatus('Sign-in timed out - click Sign in to try again', 'err');
+    } finally {
+      polling = false;
+    }
+  }
+
+  // Browser flow: the token comes back in this page's URL fragment.
   function grabTokenFromRedirect() {
     if (!location.hash || !location.hash.includes('access_token=')) return;
     const params = new URLSearchParams(location.hash.slice(1));
@@ -69,7 +130,7 @@
       method: 'POST',
       headers: {
         Authorization: 'Bearer ' + MS.state.auth.token,
-        'Client-Id': MS.state.settings.clientId.trim(),
+        'Client-Id': clientId(),
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(body)
