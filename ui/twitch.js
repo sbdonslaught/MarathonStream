@@ -2,12 +2,10 @@
 /* Twitch integration: OAuth (implicit grant) + EventSub over WebSocket.
    Requires app.js to be loaded first (uses window.MS).
 
-   This file is shared by the browser/SEA version (public/) and the Electron
-   app (electronApp test/ui/) - keep both copies identical.
-   - In a browser, sign-in navigates this page to Twitch and back.
-   - In Electron, sign-in opens the user's default browser (where they are
-     already logged in to Twitch); the redirect lands on /auth/callback, which
-     hands the token back to the app through the local server.
+   Sign-in opens the user's default browser (where they are already logged in
+   to Twitch); the redirect lands on /auth/callback, which hands the token
+   back to the app through the local server. (When this file runs in a plain
+   browser instead of Electron, sign-in navigates the page itself.)
 
    The Client ID is resolved in this order:
      1. manual override entered in Options

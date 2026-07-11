@@ -1,10 +1,39 @@
 {
   "name": "marathonstream",
   "version": "1.0.0",
-  "description": "Twitch sub-marathon countdown timer with EventSub integration",
-  "main": "server.js",
+  "description": "Twitch sub-marathon (subathon) countdown timer - viewers extend the timer with follows, subs, bits, keywords, and channel points",
+  "main": "main.js",
+  "author": "sbdonslaught",
+  "license": "MIT",
+  "repository": "github:sbdonslaught/MarathonStream",
+  "homepage": "https://github.com/sbdonslaught/MarathonStream",
   "scripts": {
-    "start": "node server.js",
-    "build": "node build.js"
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.yanis.marathonstream",
+    "productName": "MarathonStream",
+    "files": [
+      "main.js",
+      "ui/**/*",
+      "build/icon.ico"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
+    }
+  },
+  "devDependencies": {
+    "electron": "^43.0.0",
+    "electron-builder": "^26.15.3"
   }
 }

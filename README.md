@@ -1,78 +1,72 @@
 # MarathonStream
 
-A Twitch **sub-marathon (subathon) countdown timer**. Viewers extend the timer by following, subbing, cheering bits, typing keywords in chat, or redeeming channel points. Runs entirely on your PC.
+A **Twitch sub-marathon (subathon) timer** for Windows. You set a starting countdown; your viewers extend it by following, subscribing, cheering bits, typing keywords in chat, or redeeming channel points. When the timer hits zero, the marathon is over.
 
-## Run it
+Everything runs locally on your PC — no accounts, no cloud, no data leaves your machine except talking to Twitch itself.
 
-Requires [Node.js](https://nodejs.org) (no packages to install).
+## Download
+
+Grab **`MarathonStream Setup x.x.x.exe`** from the [latest release](https://github.com/sbdonslaught/MarathonStream/releases/latest) and run it. It installs per-user (no admin needed) and launches when done.
+
+> **Windows SmartScreen note:** the exe is unsigned, so Windows may warn on first launch. Click *More info → Run anyway*. A `MarathonStream x.x.x.exe` portable version (no install) is also attached to each release.
+
+## Quick start
+
+1. Launch the app and move your mouse — the corner controls appear.
+2. Open **Options** (⚙), click **Sign in with Twitch**. Your browser opens; approve, and the app connects. No setup, no API keys.
+3. In Options → Timer, set your starting time and press **Start**.
+
+That's it — follows, subs, bits, keywords, and channel point redemptions now add time.
+
+## Features
+
+- **Timer-only display** in days : hours : minutes : seconds — everything else lives in slide-out panels. Add `http://localhost:3117` as an OBS browser source to put the timer on stream.
+- **Configurable time per action**, each set individually:
+  - **Follows** — with a built-in 7-day per-user cooldown so nobody can unfollow/refollow to farm time.
+  - **Subs** — new subs, resubs, and every gifted sub in a bomb each count.
+  - **Bits** — seconds per 100 bits, scaling with the amount cheered.
+  - **Chat keywords** — any number of them, each with its own amount and a per-user cooldown to stop spam.
+  - **Channel point rewards** — any number, matched by reward title.
+- **Manual add-time** button (negative values subtract).
+- **Pause the timer** and **pause time additions** independently.
+- **Timer at zero** blocks further additions — or revives the marathon if you enable the "allow after zero" option.
+- **Activity panel** logging every action: who, what, when, how much time it added (including actions that were blocked and why).
+- **Everything auto-saves.** Close the app, reboot, come back — the timer and log are exactly where you left them. Only the **RESET EVERYTHING** button wipes a marathon.
+- **Test buttons** to simulate every event type before going live.
+
+## Build from source
+
+Requires [Node.js](https://nodejs.org). Then:
 
 ```
+git clone https://github.com/sbdonslaught/MarathonStream.git
 cd MarathonStream
-npm start
+npm install
+npm start        # run in development
+npm run dist     # build the installer + portable exe into dist/
 ```
 
-Then open **http://localhost:3117** in your browser.
+Or just double-click `build_exe.bat`, which does all of the above.
 
-## Build a standalone .exe
+## How the Twitch connection works
 
-Double-click **`build_exe.bat`**, or run:
+The app talks to Twitch directly from your machine using [EventSub over WebSocket](https://dev.twitch.tv/docs/eventsub/) with a user token obtained via OAuth — sign-in happens in your own browser and the token never leaves your PC. It listens for follows, subs, resubs, gift subs, cheers, chat messages, and channel point redemptions on **your** channel (sign in with the broadcaster account).
 
-```
-cd MarathonStream
-npm run build
-```
+The OAuth Client ID is fetched at sign-in from a remote config URL (with a local fallback cache), so it can be rotated without shipping a new build — see [website/SETUP.md](website/SETUP.md) if you're forking this and want to host your own. You can also paste your own Twitch app Client ID into Options → "Client ID override" (register at [dev.twitch.tv](https://dev.twitch.tv/console/apps) with redirect URLs `http://localhost:3117/` and `http://localhost:3117/auth/callback`, client type Public).
 
-This creates **`dist/MarathonStream.exe`** — a single file with the whole app baked in. Double-click it to start: it opens as a standalone app window (no tabs or address bar), with its own taskbar entry. Keep the console window open while streaming; closing it stops the app. Double-clicking the exe again while it's already running just reopens the window.
+## Data & privacy
 
-Notes:
-- The app window uses Microsoft Edge's app mode under the hood (built into Windows). If Edge is missing, it falls back to your default browser.
-- The build needs internet the first time (it fetches a small injection tool). The finished exe works fully offline (except for Twitch itself, of course).
-- The exe is unsigned, so Windows SmartScreen may warn on first launch — click *More info → Run anyway*.
-- The exe's saved data (timer, settings, login) lives in `%LOCALAPPDATA%\MarathonStream`, so updating or moving the exe never loses your marathon. Note this is separate storage from any browser you used via `npm start`.
+Timer state, settings, activity log, and your Twitch token are stored locally in the app's own profile (`%APPDATA%\marathonstream`). Nothing is sent anywhere except Twitch's own API. Updating or reinstalling the app keeps your data; **RESET EVERYTHING** in Options clears the marathon but keeps settings and login.
 
-## Connect to Twitch
+## Contributing
 
-The app fetches its Client ID automatically from `https://marathon.onslaught.ca/app/client_id` (see [website/SETUP.md](website/SETUP.md) for hosting that file), so normally signing in is just: Options → **Sign in with Twitch** → approve. The steps below are only needed if you want to use your **own** Twitch app registration instead (paste its Client ID into the "Client ID override" field in Options):
+Issues and pull requests welcome! The codebase is deliberately small and framework-free:
 
-1. Go to https://dev.twitch.tv/console/apps and click **Register Your Application**.
-2. Name: anything (e.g. `MarathonStream`).
-3. **OAuth Redirect URLs**: add both `http://localhost:3117/` (exactly, with the trailing slash) and `http://localhost:3117/auth/callback` (the second one is used by the Electron version).
-4. Category: anything (e.g. *Broadcaster Suite*). Client type: **Public**.
-5. Copy the **Client ID**.
-6. In the app, open **Options** (gear icon, top-right — move the mouse to reveal it), paste the Client ID into the Twitch section, and click **Sign in with Twitch**.
-7. Approve the permissions. You'll be sent back to the app, which auto-connects and starts listening for events.
+- [main.js](main.js) — Electron main process + the little localhost server (OAuth needs a `http://localhost` redirect)
+- [ui/app.js](ui/app.js) — timer, persistence, activity log, settings UI
+- [ui/twitch.js](ui/twitch.js) — OAuth + EventSub WebSocket client
+- [ui/index.html](ui/index.html) / [ui/style.css](ui/style.css) — the interface
 
-Sign in with the **broadcaster's** Twitch account — the permissions (followers, subs, bits, redemptions, chat) only work on your own channel.
+## License
 
-## How it works
-
-- **Timer only** on screen. Move the mouse to reveal the corner buttons: play/pause timer, pause time-additions, Activity, Options.
-- **Set the starting time** in Options → Timer (days/hours/minutes/seconds), then press **Start**.
-- **Time per action** is configurable in seconds:
-  - **Follow** — 7-day per-user cooldown; re-follows within a week are logged but add no time.
-  - **Sub** — new subs, resubs, and each gifted sub all add the configured amount.
-  - **Bits** — you set seconds per 100 bits; it scales (e.g. 60s per 100 bits → 500 bits = 300s).
-  - **Keywords** — any number of chat keywords, each with its own amount. A per-user cooldown (default 60s) stops chat spam; set it to 0 to disable.
-  - **Channel point rewards** — any number of reward titles, each with its own amount. The title must match the reward's name on Twitch (case-insensitive).
-- **Add time manually** from Options (negative values subtract).
-- **Timer at zero**: actions stop adding time, unless you enable *"Allow actions to add time after the timer hits zero"* — then the timer revives when time comes in.
-- **Pause timer** (countdown freezes) and **Pause time additions** (events are logged but add nothing) are independent toggles.
-- **Activity panel** (☰ icon) lists every action with who did it, what it was, when, and how much time it added.
-- **Test buttons** in Options simulate each event type so you can verify your settings without real viewers.
-
-## Saving & resetting
-
-Everything (timer, activity, settings, cooldowns, login) is saved in the browser automatically — closing the app or browser loses nothing. While the app is closed the timer does **not** tick down; it resumes where it left off.
-
-**RESET EVERYTHING** (Options → Danger zone) clears the timer, activity log, and cooldowns. Your settings and Twitch login are kept.
-
-> Saved data lives in the browser's localStorage for `localhost:3117`, so always use the same browser (and don't clear site data mid-marathon).
-
-## OBS
-
-Add `http://localhost:3117` as a **Browser source** to show the timer on stream (the server must be running). Note: OBS's built-in browser is separate from your desktop browser, so run the marathon in your normal browser and use OBS's *interact* option, or capture the browser window instead — otherwise the OBS copy would have its own separate saved state.
-
-## Notes
-
-- The Twitch sign-in token typically lasts for weeks but can expire; the app checks hourly and the status line in Options will tell you if you need to sign in again.
-- If the connection drops, the app reconnects automatically.
+[MIT](LICENSE)
