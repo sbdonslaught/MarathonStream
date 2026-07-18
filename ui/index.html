@@ -85,6 +85,22 @@
     </section>
 
     <section>
+      <h3>Appearance</h3>
+      <label>Timer font size (px, 0 = auto)
+        <input type="number" id="timerFontPx" min="0">
+      </label>
+      <label>Timer subtitle size (px, 0 = auto)
+        <input type="number" id="labelFontPx" min="0">
+      </label>
+      <label>Background colour
+        <input type="color" id="bgColor">
+      </label>
+      <div class="row">
+        <button id="btn-reset-appearance">Reset appearance</button>
+      </div>
+    </section>
+
+    <section>
       <h3>Add time manually</h3>
       <div class="row dhms">
         <label>D<input type="number" id="add-d" value="0"></label>

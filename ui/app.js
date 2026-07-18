@@ -15,6 +15,9 @@
         subSeconds: 300,
         bitsPer100Seconds: 60,
         allowAfterZero: false,
+        timerFontPx: 0,   // 0 = auto (scales with window)
+        labelFontPx: 0,   // 0 = auto
+        bgColor: '#0e0e10',
         keywords: [],     // [{word, seconds, cooldownSec}]
         redemptions: []   // [{title, seconds}]
       },
@@ -360,6 +363,17 @@
     }
   }
 
+  // ---------- appearance ----------
+  function applyAppearance() {
+    const s = state.settings;
+    const root = document.documentElement.style;
+    if (s.timerFontPx > 0) root.setProperty('--timer-size', s.timerFontPx + 'px');
+    else root.removeProperty('--timer-size');
+    if (s.labelFontPx > 0) root.setProperty('--label-size', s.labelFontPx + 'px');
+    else root.removeProperty('--label-size');
+    root.setProperty('--stage-bg', s.bgColor || '#0e0e10');
+  }
+
   // ---------- settings UI ----------
   function readDHMS(prefix) {
     const v = (id) => parseInt($(id).value, 10) || 0;
@@ -431,6 +445,34 @@
     bindNumber('followSeconds', 'followSeconds');
     bindNumber('subSeconds', 'subSeconds');
     bindNumber('bitsPer100Seconds', 'bitsPer100Seconds');
+
+    // appearance
+    ['timerFontPx', 'labelFontPx'].forEach(key => {
+      const el = $(key);
+      el.value = state.settings[key];
+      el.addEventListener('change', () => {
+        state.settings[key] = Math.max(0, parseInt(el.value, 10) || 0);
+        el.value = state.settings[key];
+        save();
+        applyAppearance();
+      });
+    });
+    $('bgColor').value = state.settings.bgColor || '#0e0e10';
+    $('bgColor').addEventListener('input', () => {
+      state.settings.bgColor = $('bgColor').value;
+      save();
+      applyAppearance();
+    });
+    $('btn-reset-appearance').addEventListener('click', () => {
+      state.settings.timerFontPx = 0;
+      state.settings.labelFontPx = 0;
+      state.settings.bgColor = '#0e0e10';
+      $('timerFontPx').value = 0;
+      $('labelFontPx').value = 0;
+      $('bgColor').value = '#0e0e10';
+      save();
+      applyAppearance();
+    });
 
     $('allowAfterZero').checked = state.settings.allowAfterZero;
     $('allowAfterZero').addEventListener('change', () => {
@@ -583,6 +625,7 @@
   window.MS = { state, save, saveNow, onTwitchEvent, setTwitchStatus, pushLog };
 
   initUI();
+  applyAppearance();
   renderActivity();
   renderTimer();
 })();
