@@ -81,49 +81,60 @@ body.ended #timer .val { color: var(--red); }
 #timer.count-up .val   { color: var(--green); text-shadow: 0 0 24px rgba(55, 200, 113, .45); }
 #timer.count-down .val { color: var(--red);   text-shadow: 0 0 24px rgba(224, 71, 71, .45); }
 
-#timer.bump { animation: timer-bump .35s ease; }
-@keyframes timer-bump {
+#timer.bump { animation: timer-bump-down .4s ease; }
+#timer.bump.bump-below { animation: timer-bump-up .4s ease; }
+@keyframes timer-bump-down {
   0%   { transform: scale(1); }
-  30%  { transform: scale(1.06) translateY(5px); }
+  30%  { transform: scale(1.06) translateY(6px); }
+  100% { transform: scale(1); }
+}
+@keyframes timer-bump-up {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.06) translateY(-6px); }
   100% { transform: scale(1); }
 }
 
 #pop-layer {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 0;
-  height: 0;
+  inset: 0;
   pointer-events: none;
   z-index: 10;
 }
 
+/* each popup is anchored (left/top set from JS) to its own timer column:
+   "above" pops target the column's top edge, "below" pops its bottom edge */
 .time-pop {
   position: absolute;
-  left: var(--dx, 0px);
-  top: 0;
-  transform: translate(-50%, -160px);
   font-size: calc(var(--timer-size) * 0.42);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   color: var(--green);
   text-shadow: 0 0 20px rgba(55, 200, 113, .7), 0 2px 0 rgba(0, 0, 0, .5);
-  animation: pop-drop .9s cubic-bezier(.25, .85, .35, 1) forwards;
 }
+
+.time-pop.above { animation: pop-drop 1.4s cubic-bezier(.25, .85, .35, 1) forwards; }
+.time-pop.below { animation: pop-rise 1.4s cubic-bezier(.25, .85, .35, 1) forwards; }
 
 .time-pop.neg {
   color: var(--red);
   text-shadow: 0 0 20px rgba(224, 71, 71, .7), 0 2px 0 rgba(0, 0, 0, .5);
 }
 
-/* drops from above, "hits" the timer around the 38% mark (~340ms), then squashes and fades */
+/* flies in, "hits" the timer around the 38% mark (~530ms), squashes, fades */
 @keyframes pop-drop {
-  0%   { opacity: 0; transform: translate(-50%, -300px) scale(.4); }
-  18%  { opacity: 1; transform: translate(-50%, -260px) scale(1.25); }
-  38%  { opacity: 1; transform: translate(-50%, -120px) scale(1); }
-  52%  { opacity: 1; transform: translate(-50%, -108px) scale(1.1, .8); }
-  100% { opacity: 0; transform: translate(-50%, -130px) scale(.5); }
+  0%   { opacity: 0; transform: translate(-50%, calc(-100% - 200px)) scale(.4); }
+  18%  { opacity: 1; transform: translate(-50%, calc(-100% - 160px)) scale(1.25); }
+  38%  { opacity: 1; transform: translate(-50%, calc(-100% - 8px))   scale(1); }
+  52%  { opacity: 1; transform: translate(-50%, calc(-100% - 2px))   scale(1.15, .75); }
+  100% { opacity: 0; transform: translate(-50%, calc(-100% - 45px))  scale(.6); }
+}
+@keyframes pop-rise {
+  0%   { opacity: 0; transform: translate(-50%, 200px) scale(.4); }
+  18%  { opacity: 1; transform: translate(-50%, 160px) scale(1.25); }
+  38%  { opacity: 1; transform: translate(-50%, 8px)   scale(1); }
+  52%  { opacity: 1; transform: translate(-50%, 2px)   scale(1.15, .75); }
+  100% { opacity: 0; transform: translate(-50%, 45px)  scale(.6); }
 }
 
 #chips {
@@ -234,7 +245,7 @@ section h3 {
 
 label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 10px; }
 
-input[type="text"], input[type="number"] {
+input[type="text"], input[type="number"], select {
   width: 100%;
   margin-top: 4px;
   padding: 8px 10px;

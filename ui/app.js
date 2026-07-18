@@ -18,6 +18,7 @@
         timerFontPx: 0,   // 0 = auto (scales with window)
         labelFontPx: 0,   // 0 = auto
         bgColor: '#0e0e10',
+        popupFrom: 'above',  // 'above' | 'below' | 'random'
         keywords: [],     // [{word, seconds, cooldownSec}]
         redemptions: []   // [{title, seconds}]
       },
@@ -222,7 +223,7 @@
     const now = performance.now();
     const dt = Math.min((now - animLastDecay) / 1000, 0.5);
     animLastDecay = now;
-    animOffset *= Math.pow(0.02, dt / 0.8); // ~98% of the gap closes in 0.8s
+    animOffset *= Math.pow(0.02, dt / 1.3); // ~98% of the gap closes in 1.3s
     if (Math.abs(animOffset) < 0.05) {
       animOffset = 0;
       animActive = false;
@@ -243,27 +244,52 @@
     requestAnimationFrame(animLoop);
   }
 
+  // One popup per time component (e.g. +2m 30s -> "+2" over the minutes
+  // column and "+30" over the seconds column), anchored to the live layout
+  // so window resizes can't misplace them.
+  function spawnPops(added, from) {
+    const layer = $('pop-layer');
+    const sign = added < 0 ? '-' : '+';
+    const t = Math.abs(Math.round(added));
+    const parts = [
+      ['t-d', Math.floor(t / 86400)],
+      ['t-h', Math.floor((t % 86400) / 3600)],
+      ['t-m', Math.floor((t % 3600) / 60)],
+      ['t-s', t % 60]
+    ];
+    const stageRect = $('stage').getBoundingClientRect();
+    for (const [id, val] of parts) {
+      if (!val) continue;
+      const unitRect = $(id).closest('.unit').getBoundingClientRect();
+      const pop = document.createElement('div');
+      pop.className = 'time-pop ' + from + (added < 0 ? ' neg' : '');
+      pop.textContent = sign + val;
+      pop.style.left = (unitRect.left + unitRect.width / 2 - stageRect.left) + 'px';
+      pop.style.top = ((from === 'above' ? unitRect.top : unitRect.bottom) - stageRect.top) + 'px';
+      layer.appendChild(pop);
+      pop.addEventListener('animationend', () => pop.remove());
+      setTimeout(() => pop.remove(), 4000); // animationend never fires while the window is hidden
+    }
+  }
+
   function animateTimeChange(added) {
     animOffset += added;   // freeze the display at the old value
     renderTimer();
 
-    const layer = $('pop-layer');
-    const pop = document.createElement('div');
-    pop.className = 'time-pop' + (added < 0 ? ' neg' : '');
-    pop.textContent = formatDur(added);
-    pop.style.setProperty('--dx', Math.round(Math.random() * 160 - 80) + 'px');
-    layer.appendChild(pop);
-    pop.addEventListener('animationend', () => pop.remove());
-    setTimeout(() => pop.remove(), 3000); // animationend never fires while the window is hidden
+    const pref = state.settings.popupFrom;
+    const from = pref === 'random' ? (Math.random() < 0.5 ? 'above' : 'below')
+               : pref === 'below' ? 'below' : 'above';
+    spawnPops(added, from);
 
-    // the popup keyframes reach the timer ~340ms in; bump + start counting then
+    // the popup keyframes reach the timer ~38% in (~530ms); bump + start counting then
     setTimeout(() => {
       const timerEl = $('timer');
       timerEl.classList.remove('bump');
       void timerEl.offsetWidth; // restart the CSS animation
+      timerEl.classList.toggle('bump-below', from === 'below');
       timerEl.classList.add('bump');
       startRunUp();
-    }, 340);
+    }, 530);
   }
 
   // ---------- adding time ----------
@@ -463,13 +489,20 @@
       save();
       applyAppearance();
     });
+    $('popupFrom').value = state.settings.popupFrom || 'above';
+    $('popupFrom').addEventListener('change', () => {
+      state.settings.popupFrom = $('popupFrom').value;
+      save();
+    });
     $('btn-reset-appearance').addEventListener('click', () => {
       state.settings.timerFontPx = 0;
       state.settings.labelFontPx = 0;
       state.settings.bgColor = '#0e0e10';
+      state.settings.popupFrom = 'above';
       $('timerFontPx').value = 0;
       $('labelFontPx').value = 0;
       $('bgColor').value = '#0e0e10';
+      $('popupFrom').value = 'above';
       save();
       applyAppearance();
     });
