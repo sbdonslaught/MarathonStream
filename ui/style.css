@@ -25,6 +25,7 @@ body {
 
 /* ============ TIMER ============ */
 #stage {
+  position: relative;
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -71,6 +72,56 @@ body {
 }
 
 body.ended #timer .val { color: var(--red); }
+
+/* ============ TIME-CHANGE ANIMATION ============ */
+#timer .val { transition: color .25s; }
+#timer.count-up .val   { color: var(--green); text-shadow: 0 0 24px rgba(55, 200, 113, .45); }
+#timer.count-down .val { color: var(--red);   text-shadow: 0 0 24px rgba(224, 71, 71, .45); }
+
+#timer.bump { animation: timer-bump .35s ease; }
+@keyframes timer-bump {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.06) translateY(5px); }
+  100% { transform: scale(1); }
+}
+
+#pop-layer {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.time-pop {
+  position: absolute;
+  left: var(--dx, 0px);
+  top: 0;
+  transform: translate(-50%, -160px);
+  font-size: clamp(28px, 5vw, 64px);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--green);
+  text-shadow: 0 0 20px rgba(55, 200, 113, .7), 0 2px 0 rgba(0, 0, 0, .5);
+  animation: pop-drop .9s cubic-bezier(.25, .85, .35, 1) forwards;
+}
+
+.time-pop.neg {
+  color: var(--red);
+  text-shadow: 0 0 20px rgba(224, 71, 71, .7), 0 2px 0 rgba(0, 0, 0, .5);
+}
+
+/* drops from above, "hits" the timer around the 38% mark (~340ms), then squashes and fades */
+@keyframes pop-drop {
+  0%   { opacity: 0; transform: translate(-50%, -300px) scale(.4); }
+  18%  { opacity: 1; transform: translate(-50%, -260px) scale(1.25); }
+  38%  { opacity: 1; transform: translate(-50%, -120px) scale(1); }
+  52%  { opacity: 1; transform: translate(-50%, -108px) scale(1.1, .8); }
+  100% { opacity: 0; transform: translate(-50%, -130px) scale(.5); }
+}
 
 #chips {
   display: flex;
@@ -263,6 +314,7 @@ button.danger:hover { background: #c73535; }
 #activity-list .info .when { color: var(--muted); font-size: 11px; margin-top: 2px; }
 
 #activity-list .amount { font-weight: 700; color: var(--green); white-space: nowrap; }
+#activity-list .amount.neg { color: var(--red); }
 #activity-list .amount.zero { color: var(--muted); font-weight: 400; font-size: 11px; }
 
 /* ============ ELECTRON APP TWEAKS ============ */

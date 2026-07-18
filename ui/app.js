@@ -14,9 +14,8 @@
         followSeconds: 60,
         subSeconds: 300,
         bitsPer100Seconds: 60,
-        keywordCooldownSec: 60,
         allowAfterZero: false,
-        keywords: [],     // [{word, seconds}]
+        keywords: [],     // [{word, seconds, cooldownSec}]
         redemptions: []   // [{title, seconds}]
       },
       timer: { remaining: 0, running: false, started: false },
@@ -34,8 +33,15 @@
       if (!raw) return defaults();
       const s = JSON.parse(raw);
       const d = defaults();
+      const settings = Object.assign(d.settings, s.settings);
+      // migrate pre-per-keyword-cooldown saves: old global keywordCooldownSec
+      const legacyCd = (s.settings && typeof s.settings.keywordCooldownSec === 'number') ? s.settings.keywordCooldownSec : 60;
+      delete settings.keywordCooldownSec;
+      for (const k of settings.keywords) {
+        if (typeof k.cooldownSec !== 'number') k.cooldownSec = legacyCd;
+      }
       return {
-        settings: Object.assign(d.settings, s.settings),
+        settings,
         timer: Object.assign(d.timer, s.timer),
         actionsPaused: !!s.actionsPaused,
         activity: Array.isArray(s.activity) ? s.activity : [],
@@ -137,7 +143,7 @@
       info.appendChild(when);
 
       const amount = document.createElement('span');
-      amount.className = 'amount' + (e.added ? '' : ' zero');
+      amount.className = 'amount' + (e.added ? (e.added < 0 ? ' neg' : '') : ' zero');
       amount.textContent = e.added ? formatDur(e.added) : '+0';
 
       li.appendChild(icon);
@@ -162,11 +168,13 @@
       save();
     }
     lastTick = now;
+    decayAnim();
     renderTimer();
   }, 250);
 
   function renderTimer() {
-    const total = Math.max(0, Math.floor(state.timer.remaining));
+    // animOffset holds time not yet shown: the display "runs up" (or down) to the real value
+    const total = Math.max(0, Math.floor(state.timer.remaining - animOffset));
     const d = Math.floor(total / 86400);
     const h = Math.floor((total % 86400) / 3600);
     const m = Math.floor((total % 3600) / 60);
@@ -179,6 +187,10 @@
     const ended = state.timer.started && state.timer.remaining <= 0;
     document.body.classList.toggle('ended', ended);
 
+    const timerEl = $('timer');
+    timerEl.classList.toggle('count-up', animOffset > 0.05);
+    timerEl.classList.toggle('count-down', animOffset < -0.05);
+
     const chips = [];
     if (ended) chips.push('<span class="chip ended">TIMER ENDED</span>');
     else if (state.timer.started && !state.timer.running) chips.push('<span class="chip paused">TIMER PAUSED</span>');
@@ -190,10 +202,65 @@
     tBtn.classList.toggle('active', state.timer.running);
     $('btn-toggle-actions').classList.toggle('warn', state.actionsPaused);
     $('btn-start-pause').textContent = !state.timer.started ? 'Start' : (state.timer.running ? 'Pause' : 'Resume');
+  }
 
-    document.title = (state.timer.running ? '' : '⏸ ') +
-      (d ? d + 'd ' : '') + String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0') +
-      ' - MarathonStream';
+  // ---------- time-change animation ----------
+  // A "+30s" popup drops onto the timer; on impact the timer bumps and the
+  // displayed time runs up (or down) to the real value instead of jumping.
+  let animOffset = 0;      // seconds the display still lags behind reality
+  let animActive = false;  // decay enabled (popup has hit the timer)
+  let animLastDecay = 0;
+
+  // Time-based decay shared by the rAF loop (smooth when visible) and the
+  // 250ms tick (fallback: rAF never fires when the window is hidden/occluded,
+  // e.g. while OBS captures a minimized window).
+  function decayAnim() {
+    if (!animActive) return;
+    const now = performance.now();
+    const dt = Math.min((now - animLastDecay) / 1000, 0.5);
+    animLastDecay = now;
+    animOffset *= Math.pow(0.02, dt / 0.8); // ~98% of the gap closes in 0.8s
+    if (Math.abs(animOffset) < 0.05) {
+      animOffset = 0;
+      animActive = false;
+    }
+  }
+
+  function animLoop() {
+    if (!animActive) return;
+    decayAnim();
+    renderTimer();
+    requestAnimationFrame(animLoop);
+  }
+
+  function startRunUp() {
+    if (animActive || animOffset === 0) return;
+    animActive = true;
+    animLastDecay = performance.now();
+    requestAnimationFrame(animLoop);
+  }
+
+  function animateTimeChange(added) {
+    animOffset += added;   // freeze the display at the old value
+    renderTimer();
+
+    const layer = $('pop-layer');
+    const pop = document.createElement('div');
+    pop.className = 'time-pop' + (added < 0 ? ' neg' : '');
+    pop.textContent = formatDur(added);
+    pop.style.setProperty('--dx', Math.round(Math.random() * 160 - 80) + 'px');
+    layer.appendChild(pop);
+    pop.addEventListener('animationend', () => pop.remove());
+    setTimeout(() => pop.remove(), 3000); // animationend never fires while the window is hidden
+
+    // the popup keyframes reach the timer ~340ms in; bump + start counting then
+    setTimeout(() => {
+      const timerEl = $('timer');
+      timerEl.classList.remove('bump');
+      void timerEl.offsetWidth; // restart the CSS animation
+      timerEl.classList.add('bump');
+      startRunUp();
+    }, 340);
   }
 
   // ---------- adding time ----------
@@ -208,8 +275,11 @@
       }
     }
     if (added !== 0) {
+      const before = state.timer.remaining;
       state.timer.remaining = Math.max(0, state.timer.remaining + added);
       if (state.timer.remaining > 0) zeroLogged = false;
+      const delta = state.timer.remaining - before;
+      if (Math.abs(delta) >= 0.5) animateTimeChange(delta);
     }
     pushLog({ type, label, user, added, note });
     renderTimer();
@@ -223,7 +293,8 @@
     for (const id of Object.keys(state.followCooldowns)) {
       if (now - state.followCooldowns[id] > WEEK_MS) delete state.followCooldowns[id];
     }
-    const kwWindow = Math.max((state.settings.keywordCooldownSec || 0) * 1000, 3600000);
+    const maxCd = state.settings.keywords.reduce((mx, k) => Math.max(mx, k.cooldownSec || 0), 0);
+    const kwWindow = Math.max(maxCd * 1000, 3600000);
     for (const k of Object.keys(state.keywordCooldowns)) {
       if (now - state.keywordCooldowns[k] > kwWindow) delete state.keywordCooldowns[k];
     }
@@ -270,7 +341,7 @@
             const w = k.word.toLowerCase();
             if (!text.includes(w)) continue;
             const key = ev.chatter_user_id + '|' + w;
-            const cd = (s.keywordCooldownSec || 0) * 1000;
+            const cd = (k.cooldownSec || 0) * 1000;
             if (cd > 0 && state.keywordCooldowns[key] && Date.now() - state.keywordCooldowns[key] < cd) continue;
             state.keywordCooldowns[key] = Date.now();
             recordAction('keyword', 'used keyword "' + k.word + '"', ev.chatter_user_name, k.seconds, false);
@@ -299,7 +370,7 @@
     const el = $(id);
     el.value = state.settings[key];
     el.addEventListener('change', () => {
-      state.settings[key] = Math.max(0, parseInt(el.value, 10) || 0);
+      state.settings[key] = parseInt(el.value, 10) || 0;
       el.value = state.settings[key];
       save();
     });
@@ -319,22 +390,33 @@
 
       const num = document.createElement('input');
       num.type = 'number';
-      num.min = '0';
       num.value = item.seconds;
-      num.title = 'seconds added';
-      num.addEventListener('change', () => { item.seconds = Math.max(0, parseInt(num.value, 10) || 0); onChange(); });
+      num.title = 'seconds added (negative subtracts)';
+      num.addEventListener('change', () => { item.seconds = parseInt(num.value, 10) || 0; onChange(); });
+
+      let cd = null;
+      if (fields.cooldown) {
+        cd = document.createElement('input');
+        cd.type = 'number';
+        cd.min = '0';
+        cd.value = item.cooldownSec || 0;
+        cd.title = 'per-user cooldown in seconds (0 = off)';
+        cd.addEventListener('change', () => { item.cooldownSec = Math.max(0, parseInt(cd.value, 10) || 0); onChange(); });
+      }
 
       const del = document.createElement('button');
       del.textContent = '✕';
       del.title = 'Remove';
       del.addEventListener('click', () => { items.splice(i, 1); onChange(); renderCfgList(containerId, items, fields, onChange); });
 
-      row.appendChild(text); row.appendChild(num); row.appendChild(del);
+      row.appendChild(text); row.appendChild(num);
+      if (cd) row.appendChild(cd);
+      row.appendChild(del);
       box.appendChild(row);
     });
   }
 
-  const renderKeywords = () => renderCfgList('keyword-list', state.settings.keywords, { text: 'word' }, save);
+  const renderKeywords = () => renderCfgList('keyword-list', state.settings.keywords, { text: 'word', cooldown: true }, save);
   const renderRedeems = () => renderCfgList('redeem-list', state.settings.redemptions, { text: 'title' }, save);
 
   function initUI() {
@@ -349,7 +431,6 @@
     bindNumber('followSeconds', 'followSeconds');
     bindNumber('subSeconds', 'subSeconds');
     bindNumber('bitsPer100Seconds', 'bitsPer100Seconds');
-    bindNumber('keywordCooldownSec', 'keywordCooldownSec');
 
     $('allowAfterZero').checked = state.settings.allowAfterZero;
     $('allowAfterZero').addEventListener('change', () => {
@@ -362,16 +443,17 @@
 
     $('btn-add-keyword').addEventListener('click', () => {
       const word = $('kw-word').value.trim();
-      const secs = Math.max(0, parseInt($('kw-secs').value, 10) || 0);
+      const secs = parseInt($('kw-secs').value, 10) || 0;
+      const cd = Math.max(0, parseInt($('kw-cd').value, 10) || 0);
       if (!word) return;
-      state.settings.keywords.push({ word, seconds: secs });
-      $('kw-word').value = ''; $('kw-secs').value = '';
+      state.settings.keywords.push({ word, seconds: secs, cooldownSec: cd });
+      $('kw-word').value = ''; $('kw-secs').value = ''; $('kw-cd').value = '';
       save(); renderKeywords();
     });
 
     $('btn-add-redeem').addEventListener('click', () => {
       const title = $('rd-title').value.trim();
-      const secs = Math.max(0, parseInt($('rd-secs').value, 10) || 0);
+      const secs = parseInt($('rd-secs').value, 10) || 0;
       if (!title) return;
       state.settings.redemptions.push({ title, seconds: secs });
       $('rd-title').value = ''; $('rd-secs').value = '';

@@ -11,6 +11,7 @@
 <div id="drag-strip"></div>
 
 <main id="stage">
+  <div id="pop-layer"></div>
   <div id="timer">
     <div class="unit"><span class="val" id="t-d">0</span><span class="lbl">days</span></div>
     <div class="sep">:</div>
@@ -99,22 +100,22 @@
 
     <section>
       <h3>Time per action (seconds)</h3>
-      <label>Follow<input type="number" id="followSeconds" min="0"></label>
-      <label>Sub / resub / gifted sub<input type="number" id="subSeconds" min="0"></label>
-      <label>Per 100 bits (scales with amount)<input type="number" id="bitsPer100Seconds" min="0"></label>
+      <p class="muted">Negative numbers subtract time.</p>
+      <label>Follow<input type="number" id="followSeconds"></label>
+      <label>Sub / resub / gifted sub<input type="number" id="subSeconds"></label>
+      <label>Per 100 bits (scales with amount)<input type="number" id="bitsPer100Seconds"></label>
     </section>
 
     <section>
       <h3>Chat keywords</h3>
+      <p class="muted">sec = time added (negative subtracts) &middot; cd = per-user cooldown in seconds (0 = off)</p>
       <div id="keyword-list" class="cfg-list"></div>
       <div class="row addrow">
         <input type="text" id="kw-word" placeholder="keyword">
-        <input type="number" id="kw-secs" placeholder="sec" min="0">
+        <input type="number" id="kw-secs" placeholder="sec">
+        <input type="number" id="kw-cd" placeholder="cd" min="0">
         <button id="btn-add-keyword">+</button>
       </div>
-      <label>Per-user cooldown (seconds, 0 = off)
-        <input type="number" id="keywordCooldownSec" min="0">
-      </label>
     </section>
 
     <section>
@@ -123,7 +124,7 @@
       <div id="redeem-list" class="cfg-list"></div>
       <div class="row addrow">
         <input type="text" id="rd-title" placeholder="reward title">
-        <input type="number" id="rd-secs" placeholder="sec" min="0">
+        <input type="number" id="rd-secs" placeholder="sec">
         <button id="btn-add-redeem">+</button>
       </div>
     </section>
