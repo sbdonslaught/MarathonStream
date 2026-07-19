@@ -1,6 +1,6 @@
 {
   "name": "marathonstream",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Twitch sub-marathon (subathon) countdown timer - viewers extend the timer with follows, subs, bits, keywords, and channel points",
   "main": "main.js",
   "author": "sbdonslaught",

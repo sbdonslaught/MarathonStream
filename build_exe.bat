@@ -42,8 +42,8 @@ if errorlevel 1 (
 ) else (
     echo.
     echo Build complete! Files in %~dp0dist :
-    echo   - MarathonStream Setup 1.0.0.exe  ^(installer - give THIS to friends^)
-    echo   - MarathonStream 1.0.0.exe        ^(portable - runs without installing^)
+    echo   - MarathonStream Setup ^<version^>.exe  ^(installer - give THIS to friends^)
+    echo   - MarathonStream ^<version^>.exe        ^(portable - runs without installing^)
 )
 echo.
 pause
